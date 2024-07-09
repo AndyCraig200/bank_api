@@ -15,12 +15,13 @@ class DepositTest extends TestCase
         $user = User::factory()->create();
         $account = Account::factory()->create(['user_id' => $user->id, 'balance' => 1000]);
 
-        $response = $this->actingAs($user)->postJson("/api/accounts/{$account->id}/deposit", [
+        $response = $this->actingAs($user)->postJson("/api/accounts/deposit", [
+            'account_id' => $account->id,
             'amount' => 500,
             'description' => 'Test deposit',
         ]);
 
-        $response->assertStatus(201);
+        $response->assertStatus(200);
         $this->assertDatabaseHas('accounts', ['id' => $account->id, 'balance' => 1500]);
         $this->assertDatabaseHas('transactions', ['account_id' => $account->id, 'type' => 'deposit', 'amount' => 500]);
     }

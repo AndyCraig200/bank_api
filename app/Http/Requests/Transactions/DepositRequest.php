@@ -23,6 +23,7 @@ class DepositRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'account_id' => 'required|exists:accounts,id',
             'amount' => 'required|numeric|min:0.01',
             'description' => 'nullable|string|max:255'
         ];

@@ -32,6 +32,6 @@ class TransactionRetrievalTest extends TestCase
 
         $response = $this->actingAs($user)->getJson("/api/accounts/{$account->id}/transactions");
 
-        $response->assertStatus(403);
+        $response->assertStatus(401);
     }
 }

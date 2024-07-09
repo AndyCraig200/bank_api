@@ -15,12 +15,13 @@ class WithdrawalTest extends TestCase
         $user = User::factory()->create();
         $account = Account::factory()->create(['user_id' => $user->id, 'balance' => 1000]);
 
-        $response = $this->actingAs($user)->postJson("/api/accounts/{$account->id}/withdraw", [
+        $response = $this->actingAs($user)->postJson("/api/accounts/withdraw", [
+            'account_id' => $account->id,
             'amount' => 500,
             'description' => 'Test withdrawal',
         ]);
 
-        $response->assertStatus(201);
+        $response->assertStatus(200);
         $this->assertDatabaseHas('accounts', ['id' => $account->id, 'balance' => 500]);
         $this->assertDatabaseHas('transactions', ['account_id' => $account->id, 'type' => 'withdrawal', 'amount' => 500]);
     }
@@ -30,7 +31,8 @@ class WithdrawalTest extends TestCase
         $user = User::factory()->create();
         $account = Account::factory()->create(['user_id' => $user->id, 'balance' => 1000]);
 
-        $response = $this->actingAs($user)->postJson("/api/accounts/{$account->id}/withdraw", [
+        $response = $this->actingAs($user)->postJson("/api/accounts/withdraw", [
+            'account_id' => $account->id,
             'amount' => 1500,
             'description' => 'Test overdraw',
         ]);

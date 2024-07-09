@@ -47,8 +47,8 @@ class AccountControllerTest extends TestCase
 
         $response = $this->actingAs($user)->getJson("/api/accounts/{$account->id}");
 
-        $response->assertStatus(403);
-        $response->assertJson(['error' => 'User not authorized for this account.']);
+        $response->assertStatus(401);
+        $response->assertJson(['message' => 'User not authorized for this account']);
     }
 
     public function test_user_can_list_their_accounts()

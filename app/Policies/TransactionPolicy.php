@@ -29,11 +29,7 @@ class TransactionPolicy
      */
     public function create(User $user): bool
     {
-        if ($user->accounts->count() === 0) {
-            return false;
-        }else{
-            return true;
-        }
+        return $user->accounts->count() > 0;
     }
 
     /**

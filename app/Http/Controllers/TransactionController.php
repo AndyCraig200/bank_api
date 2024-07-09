@@ -6,70 +6,80 @@ use App\Http\Requests\Transactions\DepositRequest;
 use App\Http\Requests\Transactions\TransferRequest;
 use App\Http\Requests\Transactions\WithdrawalRequest;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
-use App\Traits\TransactionMethods;
 use App\Enums\TransactionType;
+use App\Traits\HttpResponse;
+use App\Models\Account;
+use Illuminate\Support\Facades\Auth;
 
 class TransactionController extends Controller
 {
-    use TransactionMethods;
-    public function deposit(DepositRequest $request, $id)
+    use HttpResponse;
+    public function deposit(DepositRequest $request): JsonResponse
     {
         $request->validated();
 
-        $account = $this->findUserAccountOrFail($id);
+        $account = Account::findOrFail($request->account_id);
+        if (Auth::user()->cannot('view', $account)) {
+            return $this->abortWithJson("User not authorized for this account", 401);
+        }
 
         $account->balance += $request->amount;
         $account->save();
 
-        $transaction = $this->createTransaction($account, TransactionType::DEPOSIT, $request->amount, $request->description);
+        $transaction = $account->createTransaction(TransactionType::DEPOSIT, $request->amount, $request->description);
 
-        return response()->json($transaction, 201);
+        return response()->json($transaction, 200);
     }
 
-    public function withdraw(WithdrawalRequest $request, $id)
+    public function withdraw(WithdrawalRequest $request): JsonResponse
     {
         $request->validated();
 
-        $account = $this->findUserAccountOrFail($id);
+        $account = Account::findOrFail($request->account_id);
+        if (Auth::user()->cannot('view', $account)) {
+            return $this->abortWithJson("User not authorized for this account", 401);
+        }
 
-        $this->checkSufficientBalance($account, $request->amount);
+        if ($account->hasSufficientBalance($request->amount)){
+            return $this->abortWithJson("Insufficient balance for transaction", 400);
+        }
 
         $account->balance -= $request->amount;
         $account->save();
 
-        $transaction = $this->createTransaction($account, TransactionType::WITHDRAWAL ,$request->amount, $request->description);
+        $transaction = $account->createTransaction(TransactionType::WITHDRAWAL ,$request->amount, $request->description);
 
-        return response()->json($transaction, 201);
+        return response()->json($transaction, 200);
     }
 
-    public function transfer(TransferRequest $request)
+    public function transfer(TransferRequest $request): JsonResponse
     {
         $request->validated();
 
-        $fromAccount = $this->findUserAccountOrFail($request->from_account_id);
-        $toAccount = $this->findUserAccountOrFail($request->to_account_id);
+        $fromAccount = Account::findOrFail($request->from_account_id);
+        $toAccount = Account::findOrFail($request->to_account_id);
 
-        $this->checkSufficientBalance($fromAccount, $request->amount);
+        if (Auth::user()->cannot('view', $fromAccount) || Auth::user()->cannot('view', $toAccount)) {
+            return $this->abortWithJson("User not authorize to transfer between these accounts.", 401);
+        }
 
-        DB::transaction(function () use ($fromAccount, $toAccount, $request) {
-            $fromAccount->balance -= $request->amount;
-            $fromAccount->save();
+        if ($fromAccount->hasSufficientBalance($request->amount)){
+            return $this->abortWithJson("Insufficient balance for transaction", 400);
+        }
 
-            $toAccount->balance += $request->amount;
-            $toAccount->save();
-
-            $transaction1 = $this->createTransaction($fromAccount, TransactionType::TRANSFER, $request->amount, $request->description);
-            $transaction2 = $this->createTransaction($toAccount, TransactionType::TRANSFER, $request->amount, $request->description);
-
-        });
+        $fromAccount->transfer($toAccount, $request->amount, $request->description);
 
         return response()->json(['message' => 'Transfer successful'], 200);
     }
 
-    public function transactions($id)
+    public function transactions(int $account_id): JsonResponse
     {
-        $account = $this->findUserAccountOrFail($id);
+        $account = Account::findOrFail($account_id);
+        if (Auth::user()->cannot('view', $account)) {
+            return $this->abortWithJson("User not authorized for this account", 401);
+        }
 
         $transactions = $account->transactions()->get();
 
